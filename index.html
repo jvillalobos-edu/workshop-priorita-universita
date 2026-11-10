@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Le vostre priorità</title>
+<style>
+  :root {
+    --bg: #f5f3ee;
+    --card: #ffffff;
+    --ink: #1c2733;
+    --muted: #4d5864;
+    --line: #d6d2c6;
+    --accent: #2f5d5a;
+    --accent-ink: #ffffff;
+    --gold: #d9a62e;
+    --dot-off: #e6e1d2;
+    --error: #a3261b;
+    --focus: #0b57d0;
+    --serif: "Charter", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+    --sans: system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; background: var(--bg); color: var(--ink);
+    font: 16px/1.5 var(--sans);
+  }
+  .wrap { max-width: 680px; margin: 0 auto; padding: 32px 16px 56px; }
+  h1, h2, h3, legend { font-family: var(--serif); font-weight: 600; margin: 0; }
+  h1 { font-size: 1.9rem; line-height: 1.2; }
+  h2, legend { font-size: 1.35rem; line-height: 1.25; padding: 0; }
+  h3 { font-family: var(--sans); font-size: 1rem; font-weight: 650; line-height: 1.35; }
+  .lead { color: var(--muted); margin: 6px 0 20px; }
+  .sub { color: var(--muted); font-size: .95rem; margin: 4px 0 0; }
+
+  /* Voti rimasti */
+  .votes-bar {
+    display: flex; justify-content: space-between; align-items: center;
+    background: var(--bg); border-bottom: 1px solid var(--line);
+    padding: 10px 0; margin-bottom: 20px; font-weight: 600;
+  }
+  @media (min-height: 560px) { .votes-bar { position: sticky; top: 0; z-index: 5; } }
+  .pips { display: inline-flex; gap: 6px; }
+  .pip { width: 12px; height: 12px; border-radius: 50%; background: var(--gold); }
+  .pip.off { background: transparent; border: 2px solid var(--dot-off); }
+
+  /* Schede */
+  .card {
+    background: var(--card); border: 1px solid var(--line); border-radius: 6px;
+    padding: 18px 20px; margin: 0 0 18px; min-width: 0;
+  }
+  .card > header { padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+  ul.items { list-style: none; margin: 0; padding: 0; }
+  .item {
+    display: flex; gap: 16px; align-items: center; justify-content: space-between;
+    padding: 14px 0; border-bottom: 1px solid var(--line);
+  }
+  .item:last-child { border-bottom: 0; padding-bottom: 0; }
+  .item .text { flex: 1 1 auto; min-width: 0; }
+  .item .desc { color: var(--muted); font-size: .9rem; margin: 2px 0 0; }
+  .control { display: flex; align-items: center; gap: 10px; flex: 0 0 auto; }
+  .dots { display: inline-flex; gap: 5px; }
+  .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--dot-off); }
+  .dot.on { background: var(--gold); }
+  .count { min-width: 3.4em; text-align: center; font-size: .9rem; font-variant-numeric: tabular-nums; }
+  .step {
+    width: 44px; height: 44px; border-radius: 50%; padding: 0; cursor: pointer;
+    border: 1.5px solid var(--ink); background: #fff; color: var(--ink);
+    font: 600 1.35rem/1 var(--sans); display: inline-flex; align-items: center; justify-content: center;
+  }
+  .step[aria-disabled="true"] { opacity: .4; cursor: not-allowed; border-color: var(--line); }
+  .step:not([aria-disabled="true"]):hover { background: var(--ink); color: #fff; }
+
+  /* Campi */
+  label, .field-label { display: block; font-weight: 650; font-size: .95rem; margin-bottom: 6px; }
+  textarea, select {
+    width: 100%; font: inherit; color: var(--ink); background: #fff;
+    border: 1.5px solid #7b8590; border-radius: 4px; padding: 10px 12px;
+  }
+  textarea { min-height: 110px; resize: vertical; }
+  .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; margin-top: 14px; }
+  fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+
+  .submit, .btn {
+    font: 600 1rem/1 var(--sans); cursor: pointer; border-radius: 4px;
+    min-height: 44px; padding: 0 20px; border: 1.5px solid var(--accent);
+  }
+  .submit, .btn.primary { background: var(--accent); color: var(--accent-ink); }
+  .btn.secondary { background: #fff; color: var(--accent); }
+  .submit:hover, .btn.primary:hover { background: #244a47; }
+
+  /* Errori / stato */
+  .error-summary {
+    border: 2px solid var(--error); background: #fdf1ef; color: #5c120c;
+    border-radius: 6px; padding: 14px 16px; margin: 0 0 18px;
+  }
+  .error-summary[hidden] { display: none; }
+  .error-summary p { margin: 0; font-weight: 600; }
+  .thanks .actions { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 18px; }
+  .summary { margin: 14px 0 0; padding-left: 20px; }
+  .summary li { margin: 4px 0; }
+
+  .sr {
+    position: absolute !important; width: 1px; height: 1px; margin: -1px; padding: 0;
+    overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+  }
+  a.skip { position: absolute; left: -999px; top: 8px; background: #fff; padding: 8px 12px; z-index: 10; }
+  a.skip:focus { left: 8px; }
+
+  :focus-visible { outline: 3px solid var(--focus); outline-offset: 2px; }
+
+  @media (max-width: 560px) {
+    .item { flex-direction: column; align-items: flex-start; gap: 10px; }
+    .grid-2 { grid-template-columns: 1fr; }
+  }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+  @media (forced-colors: active) {
+    .pip, .dot { border: 1px solid CanvasText; }
+    .pip.off { background: transparent; }
+  }
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Vai al contenuto</a>
+
+<div class="wrap">
+  <main id="main">
+    <div id="survey">
+      <h1 id="page-title">Le vostre priorità</h1>
+      <p class="lead">Distribuite 3 voti tra le sfide delle quattro fasi. Potete assegnare fino a 3 voti alla stessa sfida.</p>
+
+      <noscript><p class="error-summary">Per compilare il sondaggio è necessario attivare JavaScript nel browser.</p></noscript>
+
+      <div class="votes-bar">
+        <span id="remaining-label">Voti rimasti: <span id="remaining">3</span></span>
+        <span class="pips" id="pips" aria-hidden="true"></span>
+      </div>
+
+      <div id="error" class="error-summary" role="alert" tabindex="-1" hidden>
+        <p id="error-text"></p>
+      </div>
+
+      <form id="form" novalidate>
+        <div id="sections"></div>
+
+        <section class="card" aria-labelledby="comment-title">
+          <h2 id="comment-title">Commento (facoltativo)</h2>
+          <div style="margin-top:12px">
+            <label for="comment">Qualcosa che manca o che vorreste aggiungere</label>
+            <textarea id="comment" name="comment" autocomplete="off"></textarea>
+          </div>
+        </section>
+
+        <fieldset class="card">
+          <legend>Profilo (facoltativo)</legend>
+          <p class="sub" id="profile-help">Serve solo per analizzare i risultati per tipologia di ateneo. Non indicate nomi.</p>
+          <div class="grid-2">
+            <div>
+              <label for="titolarita">Titolarità</label>
+              <select id="titolarita" name="titolarita" aria-describedby="profile-help">
+                <option value="">Preferisco non indicare</option>
+                <option>Statale</option>
+                <option>Non statale (privata)</option>
+                <option>Telematica</option>
+              </select>
+            </div>
+            <div>
+              <label for="modalita">Modalità prevalente</label>
+              <select id="modalita" name="modalita" aria-describedby="profile-help">
+                <option value="">Preferisco non indicare</option>
+                <option>In presenza</option>
+                <option>Mista (ibrida)</option>
+                <option>Online</option>
+              </select>
+            </div>
+          </div>
+        </fieldset>
+
+        <button type="submit" class="submit">Invia le risposte</button>
+      </form>
+    </div>
+
+    <section id="thanks" class="card thanks" aria-labelledby="thanks-title" hidden>
+      <h2 id="thanks-title" tabindex="-1">Grazie, le vostre risposte sono pronte</h2>
+      <p id="thanks-msg" class="sub"></p>
+      <ul class="summary" id="summary"></ul>
+      <div class="actions" id="actions"></div>
+    </section>
+  </main>
+</div>
+
+<div class="sr" id="live" aria-live="polite" aria-atomic="true"></div>
+
+<script>
+/* ================== CONFIGURAZIONE ==================
+   endpoint : URL che riceve le risposte via POST (JSON), es. Formspree,
+              Google Apps Script o webhook. Se è vuoto, al termine si offrono
+              "Invia per email" e "Scarica le risposte".
+   emailTo  : indirizzo che riceve le risposte per email (opzionale).
+===================================================== */
+const CONFIG = {
+  endpoint: "",
+  emailTo: ""
+};
+
+const TOTAL = 3, MAX_PER_ITEM = 3;
+
+const SECTIONS = [
+  { id: "reclutamento", title: "Reclutamento", sub: "Quando i futuri studenti non sono ancora studenti", items: [
+    ["acquisizione", "Acquisizione efficace e personalizzata", "Segmentazione e targeting, proposta di valore differenziata, campagne multicanale, borse di studio e alumni."],
+    ["esperienza-candidato", "Esperienza integrata del candidato", "Accessibilità e trasparenza, comunicazione coerente e accompagnamento dall'interesse all'immatricolazione."],
+    ["gestione-dati-ia", "Gestione basata su dati, automazione e IA", "Gestione unificata dei lead, integrazione delle fonti e miglioramento di marketing, ammissioni e conversione."]
+  ]},
+  { id: "formazione", title: "Formazione", sub: "Quando gli studenti sono già studenti", items: [
+    ["competenze-docenti", "Competenze e trasformazione digitale del corpo docente", "Competenze didattiche, pedagogiche e digitali: IA, cybersicurezza, nuove metodologie e change management."],
+    ["personalizzazione-apprendimento", "Personalizzazione e flessibilità dell'apprendimento", "Percorsi, contenuti e materiali adattati a ogni studente; modalità in presenza, online e ibrida."],
+    ["innovazione-pedagogica", "Innovazione pedagogica e integrazione dell'IA", "Ripensare didattica, valutazione e attività pratiche con l'IA, con una partecipazione più attiva degli studenti."]
+  ]},
+  { id: "relazione", title: "Relazione", sub: "Quando gli studenti diventano alumni e futuri studenti di formazione permanente", items: [
+    ["conoscenza-personalizzazione", "Conoscenza e personalizzazione", "Dati alumni aggiornati e unificati, profili e segmentazione, comunicazioni e servizi rilevanti per ciascun gruppo."],
+    ["engagement-community", "Engagement continuo e community", "Mantenere il legame con eventi, networking, formazione permanente, canali digitali e community attiva, anche a distanza."],
+    ["valore-coinvolgimento", "Generazione di valore e coinvolgimento", "Mentoring, ambasciatori e programmi di give back; ampliare collaborazione e fundraising, inclusi i donatori non alumni."]
+  ]},
+  { id: "processi", title: "Processi", sub: "Processi trasversali a tutto il ciclo di vita dell'università", items: [
+    ["governo-dati-processi", "Governo e integrazione di dati e processi", "Unificare le informazioni istituzionali, garantire qualità e aggiornamento, integrare i dipartimenti ed eliminare i silos."],
+    ["semplificazione", "Semplificazione, digitalizzazione e automazione", "Ridisegnare i processi con approccio lean, ridurre tempi e burocrazia, automatizzare e introdurre l'IA con governance."],
+    ["change-management", "Change management e trasformazione organizzativa", "Favorire l'adozione, chiarire le responsabilità, rafforzare la collaborazione trasversale e promuovere il miglioramento continuo."]
+  ]}
+];
+
+const votes = {};
+const $ = (id) => document.getElementById(id);
+const remaining = () => TOTAL - Object.values(votes).reduce((a, b) => a + b, 0);
+const plural = (n) => n === 1 ? "voto" : "voti";
+
+/* ---------- Costruzione ---------- */
+const host = $("sections");
+SECTIONS.forEach((s) => {
+  const sec = document.createElement("section");
+  sec.className = "card";
+  sec.setAttribute("aria-labelledby", "h-" + s.id);
+  sec.innerHTML = `<header><h2 id="h-${s.id}"></h2><p class="sub"></p></header><ul class="items"></ul>`;
+  sec.querySelector("h2").textContent = s.title;
+  sec.querySelector(".sub").textContent = s.sub;
+  const ul = sec.querySelector("ul");
+
+  s.items.forEach(([id, title, desc]) => {
+    votes[id] = 0;
+    const li = document.createElement("li");
+    li.className = "item";
+    li.innerHTML = `
+      <div class="text">
+        <h3 id="t-${id}"></h3>
+        <p class="desc" id="d-${id}"></p>
+      </div>
+      <div class="control" role="group" aria-labelledby="t-${id}" aria-describedby="d-${id}">
+        <button type="button" class="step" data-id="${id}" data-delta="-1" aria-label="Togli un voto"><span aria-hidden="true">−</span></button>
+        <span class="dots" aria-hidden="true"><i class="dot"></i><i class="dot"></i><i class="dot"></i></span>
+        <span class="count" id="c-${id}"></span>
+        <button type="button" class="step" data-id="${id}" data-delta="1" aria-label="Aggiungi un voto"><span aria-hidden="true">+</span></button>
+      </div>`;
+    li.querySelector("h3").textContent = title;
+    li.querySelector(".desc").textContent = desc;
+    ul.appendChild(li);
+  });
+  host.appendChild(sec);
+});
+
+const pips = $("pips");
+for (let i = 0; i < TOTAL; i++) pips.appendChild(Object.assign(document.createElement("i"), { className: "pip" }));
+
+/* ---------- Aggiornamento UI ---------- */
+function render() {
+  const rem = remaining();
+  $("remaining").textContent = rem;
+  [...pips.children].forEach((p, i) => p.classList.toggle("off", i >= rem));
+
+  document.querySelectorAll(".item").forEach((li) => {
+    const minus = li.querySelector('[data-delta="-1"]');
+    const plus = li.querySelector('[data-delta="1"]');
+    const id = minus.dataset.id, n = votes[id];
+    li.querySelectorAll(".dot").forEach((d, i) => d.classList.toggle("on", i < n));
+    $("c-" + id).textContent = `${n} ${plural(n)}`;
+    minus.setAttribute("aria-disabled", n === 0);
+    plus.setAttribute("aria-disabled", rem === 0 || n >= MAX_PER_ITEM);
+  });
+}
+
+document.addEventListener("click", (e) => {
+  const b = e.target.closest(".step");
+  if (!b) return;
+  const id = b.dataset.id, delta = +b.dataset.delta;
+  if (b.getAttribute("aria-disabled") === "true") {
+    if (delta > 0 && remaining() === 0) announce("Hai già assegnato tutti i voti. Togli un voto altrove per spostarlo.");
+    return;
+  }
+  votes[id] += delta;
+  render();
+  hideError();
+  const title = $("t-" + id).textContent;
+  announce(`${title}: ${votes[id]} ${plural(votes[id])}. Voti rimasti: ${remaining()}.`);
+});
+
+function announce(msg) {
+  const live = $("live");
+  live.textContent = "";
+  setTimeout(() => { live.textContent = msg; }, 30);
+}
+
+/* ---------- Errori ---------- */
+function showError(msg) {
+  $("error-text").textContent = msg;
+  $("error").hidden = false;
+  $("error").focus();
+}
+function hideError() { $("error").hidden = true; }
+
+/* ---------- Invio ---------- */
+function collect() {
+  return {
+    submittedAt: new Date().toISOString(),
+    votes: SECTIONS.flatMap((s) => s.items.map(([id, title]) => ({
+      section: s.title, id, title, votes: votes[id]
+    }))),
+    comment: $("comment").value.trim(),
+    profile: { titolarita: $("titolarita").value, modalita: $("modalita").value }
+  };
+}
+
+function textSummary(d, maxComment) {
+  const lines = ["Le vostre priorità - risposte", ""];
+  d.votes.filter((v) => v.votes > 0).forEach((v) => lines.push(`${v.votes} ${plural(v.votes)} - ${v.section}: ${v.title}`));
+  lines.push("");
+  if (d.profile.titolarita) lines.push("Titolarità: " + d.profile.titolarita);
+  if (d.profile.modalita) lines.push("Modalità prevalente: " + d.profile.modalita);
+  if (d.comment) {
+    const c = maxComment && d.comment.length > maxComment ? d.comment.slice(0, maxComment) + "… (testo completo nel file scaricato)" : d.comment;
+    lines.push("", "Commento: " + c);
+  }
+  return lines.join("\n");
+}
+
+$("form").addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const rem = remaining();
+  if (rem > 0) {
+    showError(`Prima di inviare, distribuite tutti i 3 voti. Ne ${rem === 1 ? "resta ancora 1" : "restano ancora " + rem}.`);
+    return;
+  }
+  const data = collect();
+  let sent = false, failed = false;
+
+  if (CONFIG.endpoint) {
+    const btn = e.submitter; if (btn) { btn.disabled = true; btn.textContent = "Invio in corso…"; }
+    try {
+      const r = await fetch(CONFIG.endpoint, {
+        method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" },
+        body: JSON.stringify(data)
+      });
+      sent = r.ok; failed = !r.ok;
+    } catch (_) { failed = true; }
+    if (btn) { btn.disabled = false; btn.textContent = "Invia le risposte"; }
+  }
+  showThanks(data, sent, failed);
+});
+
+function showThanks(data, sent, failed) {
+  $("survey").hidden = true;
+  const t = $("thanks"); t.hidden = false;
+
+  $("thanks-msg").textContent = sent
+    ? "Le risposte sono state inviate. Grazie per il vostro contributo."
+    : failed
+      ? "Non è stato possibile inviare le risposte automaticamente. Usate uno dei due pulsanti qui sotto."
+      : "Per completare, inviate le risposte per email oppure scaricatele e allegatele alla vostra risposta.";
+
+  const ul = $("summary"); ul.innerHTML = "";
+  data.votes.filter((v) => v.votes > 0).forEach((v) => {
+    const li = document.createElement("li");
+    li.textContent = `${v.votes} ${plural(v.votes)}: ${v.title} (${v.section})`;
+    ul.appendChild(li);
+  });
+
+  const actions = $("actions"); actions.innerHTML = "";
+  if (!sent) {
+    const subject = encodeURIComponent("Le vostre priorità - risposte");
+    let body = encodeURIComponent(textSummary(data, 600));
+    const mail = document.createElement("a");
+    mail.className = "btn primary"; mail.textContent = "Invia per email";
+    mail.style.cssText = "display:inline-flex;align-items:center;text-decoration:none";
+    mail.href = `mailto:${CONFIG.emailTo}?subject=${subject}&body=${body}`;
+    actions.appendChild(mail);
+
+    const dl = document.createElement("button");
+    dl.type = "button"; dl.className = "btn secondary"; dl.textContent = "Scarica le risposte (JSON)";
+    dl.addEventListener("click", () => {
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: "risposte_sondaggio.json" });
+      document.body.appendChild(a); a.click(); a.remove();
+    });
+    actions.appendChild(dl);
+  }
+  const h = $("thanks-title"); h.focus(); window.scrollTo(0, 0);
+}
+
+render();
+</script>
+</body>
+</html>
